@@ -1,9 +1,24 @@
 #include "stdio.h"
 #include "main.h"
 
+//w5500 related
+#include "w5500_spi.h"
+#include "wizchip_conf.h"
+#include "socket.h"
+
 SPI_HandleTypeDef hspi1;
 
 UART_HandleTypeDef huart1;
+
+// static host configuration
+wiz_NetInfo net_info = {
+    .mac = {0x02, 0x00, 0x00, 0xAB, 0xCD, 0xEF},  // Locally administered MAC address
+    .ip = {192, 168, 1, 100},                     // IP address
+    .sn = {255, 255, 255, 0},                     // Subnet mask
+    .gw = {192, 168, 1, 1},                       // Gateway
+    .dns = {8, 8, 8, 8},                          // DNS server
+    .dhcp = NETINFO_STATIC                        // Use static IP
+};
 
 
 void SystemClock_Config(void);
@@ -11,6 +26,10 @@ static void MX_GPIO_Init(void);
 static void MX_SPI1_Init(void);
 static void MX_USART1_UART_Init(void);
 static void write_data_uart1(const char data);
+
+static void check_cable_presence();
+static void check_phy_status();
+void print_host_configuration(wiz_NetInfo current_net_info);
 
 /**
   * @brief  The application entry point.
@@ -32,7 +51,17 @@ int main(void)
   MX_SPI1_Init();
   MX_USART1_UART_Init();
 
+  // initialize w5500
+  w5500_init();
 
+  // static host configuration
+  ctlnetwork(CN_SET_NETINFO, (void*) &net_info);
+
+  check_cable_presence();
+
+  check_phy_status();
+
+  print_host_configuration(net_info);
 
   /* Infinite loop */
   while (1)
@@ -41,6 +70,7 @@ int main(void)
 	  for (int i = 0; i < 100; i++)
 	  {
 		  printf("%i: Hello World!\r\n", i);
+		  HAL_Delay(1500);
 	  }
   }
 }
@@ -64,6 +94,120 @@ int __io_putchar(int ch)
 	write_data_uart1(ch);
 
 	return ch;
+}
+
+// Function to check for cable presence
+void check_cable_presence() {
+	uint8_t phy_status;
+	int error_status;
+
+	printf("\r\nChecking ethernet cable presence ...\r\n");
+
+	do
+	{
+		if((error_status = ctlwizchip(CW_GET_PHYLINK, (void*) &phy_status) == -1))
+		{
+			printf("Failed to get PHY link info.\r\nTrying again...\r\n");
+			continue;
+		}
+
+
+		if(phy_status == PHY_LINK_OFF)
+		{
+			printf("Cable is not connected.\r\n");
+			HAL_Delay(1500);
+		}
+	}while(error_status == -1 || phy_status == PHY_LINK_OFF);
+
+	printf("Cable is connected.\r\n");
+}
+
+
+// Function to check and print the current PHY status
+void check_phy_status() {
+    uint8_t phy_status;
+
+    // Get the PHY link status
+    if (ctlwizchip(CW_GET_PHYLINK, (void*)&phy_status) == -1) {
+        printf("Failed to get PHY link status.\r\n");
+        return;
+    }
+
+    // Print the PHY link status
+    if (phy_status == PHY_LINK_ON) {
+        printf("PHY Link is ON.\r\n");
+    } else {
+        printf("PHY Link is OFF.\r\n");
+    }
+
+    // Get the PHY configuration (optional, for more detailed information)
+    wiz_PhyConf phy_conf;
+    if (ctlwizchip(CW_GET_PHYCONF, (void*)&phy_conf) == -1) {
+        printf("Failed to get PHY configuration.\r\n");
+        return;
+    }
+
+    // Print the PHY configuration
+    printf("PHY Mode: ");
+    switch (phy_conf.by) {
+        case PHY_CONFBY_HW:
+            printf("Configured by hardware.\r\n");
+            break;
+        case PHY_CONFBY_SW:
+            printf("Configured by software.\r\n");
+            break;
+        default:
+            printf("Unknown.\r\n");
+            break;
+    }
+
+    printf("PHY Speed: ");
+    switch (phy_conf.speed) {
+        case PHY_SPEED_10:
+            printf("10 Mbps.\r\n");
+            break;
+        case PHY_SPEED_100:
+            printf("100 Mbps.\r\n");
+            break;
+        default:
+            printf("Unknown.\r\n");
+            break;
+    }
+
+    printf("PHY Duplex: ");
+    switch (phy_conf.duplex) {
+        case PHY_DUPLEX_HALF:
+            printf("Half duplex.\r\n");
+            break;
+        case PHY_DUPLEX_FULL:
+            printf("Full duplex.\r\n");
+            break;
+        default:
+            printf("Unknown.\r\n");
+            break;
+    }
+
+    // Print the PHY negotiation mode
+    printf("PHY Negotiation Mode: ");
+    switch (phy_conf.mode) {
+        case PHY_MODE_MANUAL:
+            printf("Manual.\r\n");
+            break;
+        case PHY_MODE_AUTONEGO:
+            printf("Auto-negotiation.\r\n");
+            break;
+        default:
+            printf("Unknown.\r\n");
+            break;
+    }}
+
+void print_host_configuration(wiz_NetInfo current_net_info)
+{
+    printf("MAC: %02X:%02X:%02X:%02X:%02X:%02X\r\n", current_net_info.mac[0], current_net_info.mac[1], current_net_info.mac[2], current_net_info.mac[3], current_net_info.mac[4], current_net_info.mac[5]);
+    printf("IP: %d.%d.%d.%d\r\n", current_net_info.ip[0], current_net_info.ip[1], current_net_info.ip[2], current_net_info.ip[3]);
+    printf("SN: %d.%d.%d.%d\r\n", current_net_info.sn[0], current_net_info.sn[1], current_net_info.sn[2], current_net_info.sn[3]);
+    printf("GW: %d.%d.%d.%d\r\n", current_net_info.gw[0], current_net_info.gw[1], current_net_info.gw[2], current_net_info.gw[3]);
+    printf("DNS: %d.%d.%d.%d\r\n", current_net_info.dns[0], current_net_info.dns[1], current_net_info.dns[2], current_net_info.dns[3]);
 }
 
 
@@ -135,13 +279,13 @@ static void MX_SPI1_Init(void)
   hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
-  hspi1.Init.CRCPolynomial = 10;
+  hspi1.Init.CRCPolynomial = 7;
   if (HAL_SPI_Init(&hspi1) != HAL_OK)
   {
     Error_Handler();
   }
   /* USER CODE BEGIN SPI1_Init 2 */
-
+  __HAL_SPI_ENABLE(&hspi1);
   /* USER CODE END SPI1_Init 2 */
 
 }

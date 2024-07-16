@@ -31,7 +31,7 @@ uint8_t SPIReadWrite(uint8_t data)
 
 
 	// write the data to the data register to be sent
-	hspi1.Instance->DR = data;
+	*(__IO uint8_t*)&hspi1.Instance->DR = data;
 
 
 
@@ -50,7 +50,7 @@ uint8_t SPIReadWrite(uint8_t data)
 
 
 	// return the received byte
-	return 	hspi1.Instance->DR;
+	return 	(*(__IO uint8_t*)&hspi1.Instance->DR);
 }
 
 /**
@@ -172,9 +172,10 @@ void w5500_init()
 	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, GPIO_PIN_RESET);
 
 	// busy wait for a while and keep the RESET pin 0
-	while(tmp-- > 0);
+	while(tmp--);
 
 
+	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, GPIO_PIN_SET);
 
 	// assign the helper drivers to complete the driver
 
@@ -189,9 +190,8 @@ void w5500_init()
 
 
 
-	// soft reset via command
-	// and allocate the specified memory for each socket
-	if (ctlwizchip(CW_RESET_WIZCHIP, (void*)memory_for_each_socket) == -1)
+	// allocate the specified memory for each socket
+	if (ctlwizchip(CW_INIT_WIZCHIP, (void*)memory_for_each_socket) == -1)
 	{
 		printf("WIZCHIP initialization failed\r\n");
 		while(1);
@@ -199,5 +199,4 @@ void w5500_init()
 
 	printf("WIZCHIP initialization done successfully\r\n");
 }
-
 
