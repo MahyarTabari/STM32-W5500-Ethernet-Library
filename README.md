@@ -89,7 +89,7 @@ This project can be used as a ready-to-use template.
 3. Modify includes for your microcontroller in below files:
     - **w5500_phy.c**
     - **w5500_spi.c**
-    - 
+
 ## License
 
 This project is licensed under the MIT License. See the LICENSE file for details.
