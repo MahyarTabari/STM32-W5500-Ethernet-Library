@@ -3,17 +3,20 @@
 
 //w5500 related
 #include "w5500_spi.h"
-#include "wizchip_conf.h"
-#include "socket.h"
 #include "w5500_phy.h"
+#include "w5500_host_config.h"
 
 SPI_HandleTypeDef hspi1;
 
 UART_HandleTypeDef huart1;
 
-// static host configuration
+
+
+// NOTE: these fields are important for static host configuration
+//		 , but the only field which is important for dynamic host
+//		 configuration is mac
 wiz_NetInfo net_info = {
-    .mac = {0x02, 0x00, 0x00, 0xAB, 0xCD, 0xEF},  // Locally administered MAC address
+    .mac = {0x56, 0xC0, 0x70, 0xD2, 0x48, 0x10},  // Locally administered MAC address
     .ip = {192, 168, 1, 100},                     // IP address
     .sn = {255, 255, 255, 0},                     // Subnet mask
     .gw = {192, 168, 1, 1},                       // Gateway
@@ -51,8 +54,11 @@ int main(void)
   // initialize w5500
   w5500_init();
 
-  // static host configuration
-  ctlnetwork(CN_SET_NETINFO, (void*) &net_info);
+//  // static host configuration
+//  static_host_configuration(net_info.mac, net_info.ip, net_info.sn, net_info.gw, net_info.dns);
+
+  // dynamic host configuration
+  dynamic_host_configuration(net_info.mac);
 
   check_cable_presence();
 
@@ -92,8 +98,6 @@ int __io_putchar(int ch)
 
 	return ch;
 }
-
-
 
 /**
   * @brief System Clock Configuration

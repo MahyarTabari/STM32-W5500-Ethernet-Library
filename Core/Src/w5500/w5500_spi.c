@@ -1,5 +1,6 @@
 #include "stm32f4xx_hal.h"
 #include "wizchip_conf.h"
+#include "w5500_spi.h"
 #include "stdio.h"
 
 extern SPI_HandleTypeDef hspi1;
@@ -58,7 +59,7 @@ uint8_t SPIReadWrite(uint8_t data)
  */
 void wizchip_deselect()
 {
-	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(SCS_PORT, SCS_PIN, GPIO_PIN_SET);
 }
 
 /**
@@ -66,7 +67,7 @@ void wizchip_deselect()
  */
 void wizchip_select()
 {
-	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(SCS_PORT, SCS_PIN, GPIO_PIN_RESET);
 }
 
 /**
@@ -129,8 +130,8 @@ void w5500_pins_init()
 	// enable GPIO clock
 	__HAL_RCC_GPIOA_CLK_ENABLE();
 
-	// configuring RESET(PA0) and SCS(PA1) as outputs
-	GPIO_InitStruct.Pin = GPIO_PIN_0 | GPIO_PIN_1;
+	// configuring RESET and SCS as outputs
+	GPIO_InitStruct.Pin = RESET_PIN | SCS_PIN;
 
 	// push pull(high if 1 and low if 0)
 	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
@@ -165,17 +166,17 @@ void w5500_init()
 	w5500_pins_init();
 
 	// first deselect the chip(by setting SCS pin)
-	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(SCS_PORT, SCS_PIN, GPIO_PIN_SET);
 
 
 	// hard reset the wiznet chip by clearing RESET
-	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(RESET_PORT, RESET_PIN, GPIO_PIN_RESET);
 
 	// busy wait for a while and keep the RESET pin 0
 	while(tmp--);
 
 
-	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(RESET_PORT, RESET_PIN, GPIO_PIN_SET);
 
 	// assign the helper drivers to complete the driver
 

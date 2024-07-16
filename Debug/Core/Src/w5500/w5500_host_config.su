@@ -1,0 +1,5 @@
+../Core/Src/w5500/w5500_host_config.c:48:6:static_host_configuration	48	static
+../Core/Src/w5500/w5500_host_config.c:73:6:dynamic_host_configuration	1064	static
+../Core/Src/w5500/w5500_host_config.c:116:6:callback_ip_assigned	8	static
+../Core/Src/w5500/w5500_host_config.c:122:6:callback_ip_renewed	8	static
+../Core/Src/w5500/w5500_host_config.c:127:6:callback_ip_conflict	8	static

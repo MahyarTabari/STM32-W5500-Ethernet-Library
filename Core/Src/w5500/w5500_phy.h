@@ -8,8 +8,8 @@
 #ifndef SRC_W5500_W5500_PHY_H_
 #define SRC_W5500_W5500_PHY_H_
 
-static void check_cable_presence();
-static void check_phy_status();
-static void print_current_host_configuration();
+void check_cable_presence();
+void check_phy_status();
+void print_current_host_configuration();
 
 #endif /* SRC_W5500_W5500_PHY_H_ */

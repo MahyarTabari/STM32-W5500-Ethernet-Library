@@ -8,7 +8,7 @@
 #include <stdio.h>
 #include "wizchip_conf.h"
 #include "stm32f4xx_hal.h"
-
+#include "w5500_phy.h"
 
 /**
  * @brief Checks the presence of an Ethernet cable.
