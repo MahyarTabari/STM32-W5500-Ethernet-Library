@@ -23,7 +23,7 @@ To use this library in your STM32 project, follow the steps below:
 ### 2. Project Setup
 Copy `w5500` directory to the *Core/Src/* .
 
-### 2. Initialize the W5500
+### 3. Initialize the W5500
 
 Initialize the W5500 by calling the initialization function defined in `w5500_spi.h`.
 
@@ -33,6 +33,14 @@ Initialize the W5500 by calling the initialization function defined in `w5500_sp
 // Call this function to initialize the W5500
 w5500_init();
 ```
+
+## Example
+**main.c** file contains an example on how to use the library.
+
+   ##### Note:
+This project can be used as a ready-to-use template.
+
+
 # Available API
 
 ### **w5500_spi.h**
@@ -69,7 +77,7 @@ w5500_init();
     ```c
     __HAL_SPI_ENABLE(&hspi1);
     ```
-2. remember to include `dhcp.h` header to `stm32fxxxx.c` file and add the below code to `SysTick_Handler()` function:
+2. Remember to include `dhcp.h` header to `stm32fxxxx.c` file and add the below code to `SysTick_Handler()` function:
     ```c
     static uint16_t ticks = 0;
     ticks++;
@@ -78,11 +86,10 @@ w5500_init();
         ticks = 0;
     }
     ```
-3. modify includes for your microcontroller in below files:
+3. Modify includes for your microcontroller in below files:
     - **w5500_phy.c**
     - **w5500_spi.c**
     - 
-4. **main.c** file contains an example on how to use the library.
 ## License
 
 This project is licensed under the MIT License. See the LICENSE file for details.
