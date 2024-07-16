@@ -6,6 +6,7 @@
 "./Core/Src/system_stm32f4xx.o"
 "./Core/Src/w5500/W5500/w5500.o"
 "./Core/Src/w5500/socket.o"
+"./Core/Src/w5500/w5500_phy.o"
 "./Core/Src/w5500/w5500_spi.o"
 "./Core/Src/w5500/wizchip_conf.o"
 "./Core/Startup/startup_stm32f401rctx.o"
