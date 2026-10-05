@@ -14,6 +14,11 @@
 
 volatile bool ip_assigned = false;
 
+/* The mode the host was actually put into by the last configuration call.
+   Tracked explicitly because the controller register holding the source address
+   looks identical for a static and a leased one. */
+static dhcp_mode active_mode = NETINFO_STATIC;
+
 /**
  * @brief Callback function triggered when an IP address is successfully assigned by the DHCP server.
  * @param None
@@ -60,6 +65,13 @@ void static_host_configuration(uint8_t mac[6], uint8_t ip[4], uint8_t sn[4], uin
 
     // Set network configuration
     ctlnetwork(CN_SET_NETINFO, (void*)&net_info);
+
+    active_mode = NETINFO_STATIC;
+
+    // A DHCP client that is still running would compete for the same address
+    // set and could overwrite it on the next lease renewal, so it is stopped
+    // before the new configuration is considered active.
+    DHCP_stop();
 
     printf("Static IP configuration is done successfully.\r\n");
 
@@ -109,7 +121,32 @@ void dynamic_host_configuration(uint8_t mac[6])
     // Set network information obtained from DHCP
     wizchip_setnetinfo(&net_info);
 
+    active_mode = NETINFO_DHCP;
+
     printf("Dynamic IP configuration is done successfully.\r\n");
+}
+
+
+/**
+ * @brief Returns the address mode the host is running in.
+ */
+dhcp_mode host_configuration_mode(void)
+{
+	return active_mode;
+}
+
+
+/**
+ * @brief Runs the DHCP state machine while the host is in dynamic mode.
+ * @details DHCP_run() is what renews the lease. It is deliberately not called
+ *          from anywhere else: the original flow configured the address once and
+ *          then never touched the client again, so the device kept its address
+ *          only until the first lease expired.
+ */
+void host_configuration_keepalive(void)
+{
+	if (active_mode == NETINFO_DHCP)
+		DHCP_run();
 }
 
 

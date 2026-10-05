@@ -5,6 +5,7 @@
 #include "w5500_spi.h"
 #include "w5500_phy.h"
 #include "w5500_host_config.h"
+#include "http_server.h"
 
 SPI_HandleTypeDef hspi1;
 
@@ -37,6 +38,8 @@ static void write_data_uart1(const char data);
   */
 int main(void)
 {
+  uint32_t last_report = 0;
+
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
   HAL_Init();
 
@@ -66,14 +69,36 @@ int main(void)
 
   print_current_host_configuration();
 
-  /* Infinite loop */
+  /* Serves the dashboard on port 80. This resets the connection pool only;
+     the sockets are opened by the poll function once an address is available. */
+  http_server_init();
+
+  /* Infinite loop. http_server_poll() is non-blocking, and the keepalive is a
+     no-op in static mode, so both calls are unconditional. */
   while (1)
   {
-	  // test printf
-	  for (int i = 0; i < 100; i++)
+	  uint32_t now;
+
+	  http_server_poll();
+
+	  /* Runs the DHCP state machine, which is what renews the lease. */
+	  host_configuration_keepalive();
+
+	  now = HAL_GetTick();
+
+	  if (now - last_report >= 10000)
 	  {
-		  printf("%i: Hello World!\r\n", i);
-		  HAL_Delay(1500);
+		  last_report = now;
+
+		  /* Read the address back instead of reusing net_info, because in
+			 DHCP mode it was the state machine that assigned it. */
+		  wizchip_getnetinfo(&net_info);
+
+		  printf("[main] up %lu s, http://%u.%u.%u.%u, mode %s, %lu requests\r\n",
+				 (unsigned long) (now / 1000),
+				 net_info.ip[0], net_info.ip[1], net_info.ip[2], net_info.ip[3],
+				 host_configuration_mode() == NETINFO_DHCP ? "DHCP" : "static",
+				 (unsigned long) http_server_requests());
 	  }
   }
 }

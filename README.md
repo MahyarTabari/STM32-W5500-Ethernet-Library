@@ -41,6 +41,61 @@ w5500_init();
 This project can be used as a ready-to-use template.
 
 
+# Web server
+
+The firmware also serves a small web interface on port 80. It needs no interrupt
+line, no `accept()` and no thread: everything runs from `http_server_poll()`, so
+the main loop never blocks on the network.
+
+```c
+#include "http_server.h"
+
+w5500_init();
+dynamic_host_configuration(net_info.mac);
+check_cable_presence();
+http_server_init();
+
+for (;;) {
+    http_server_poll();
+    host_configuration_keepalive();
+}
+```
+
+- `http_server_init()` resets the connection pool. It does not open sockets: the
+  controller needs a valid address first, so the sockets are opened lazily from
+  `http_server_poll()`.
+- `http_server_poll()` serves every pending connection and must be called often
+  enough. The W5500 `INTn` pin is not wired on this board, so this is the only
+  thing that makes the server notice an incoming connection.
+- `host_configuration_keepalive()` runs the DHCP state machine, which is what
+  renews the lease. Call it from the same loop, otherwise the address silently
+  expires and the device disappears from the network. It does nothing in static
+  mode.
+
+## Routes
+
+| Method | Path         | Result                                                  |
+| ------ | ------------ | ------------------------------------------------------- |
+| `GET`  | `/`          | Dashboard, refreshed by JavaScript polling `/api/status` |
+| `GET`  | `/api/status`| Uptime, request count, free stack, PHY, address mode     |
+| `GET`  | `/api/net`   | Current MAC, IP, mask, gateway and DNS                   |
+| `POST` | `/api/net`   | Writes a static address (`ip`, `sn`, `gw`, `dns`, `mac`)|
+| `POST` | `/api/reboot`| Reboots after the response has been delivered            |
+
+`POST /api/net` takes `application/x-www-form-urlencoded` fields, exactly what
+the dashboard form posts. The MAC is optional: omitting it keeps the address
+already in the controller, because a DHCP lease is bound to it.
+
+Errors are reported as `400`, `404`, `405`, `413` and `500`. Every response is
+sent with `Content-Length`, `Cache-Control: no-store` and `Connection: close`.
+
+   ##### Note:
+Writing an address drops any live connection, including the one that requested
+the change. The server therefore applies the new address only after the
+confirmation has been delivered, and re-arms the listening socket with it. Be
+prepared for the browser to reload to a different URL after `POST /api/net`.
+
+
 # Available API
 
 ### **w5500_spi.h**
@@ -69,6 +124,27 @@ This project can be used as a ready-to-use template.
 - `void dynamic_host_configuration(uint8_t mac[6])`
   - **Description**: Configures the W5500 using DHCP for dynamic IP assignment.
   - **Details**: Sets up the MAC address and initiates the DHCP process to obtain an IP address, subnet mask, gateway, and DNS server from a DHCP server.
+
+- `void host_configuration_keepalive()`
+  - **Description**: Maintains the current address mode, call it from the main loop.
+  - **Details**: In DHCP mode this runs the DHCP state machine, which is what renews the lease. Without it the address is only valid until the lease expires. Does nothing in static mode.
+
+- `dhcp_mode host_configuration_mode()`
+  - **Description**: Reports whether the address came from DHCP or was written statically.
+  - **Details**: Tracked in software rather than read back from the controller, because the ioLibrary keeps the DNS server in RAM only.
+
+### **http_server.h**
+- `void http_server_init()`
+  - **Description**: Resets the connection pool.
+  - **Details**: Does not open sockets, they are opened lazily by `http_server_poll()` once the controller has an address.
+
+- `void http_server_poll()`
+  - **Description**: Serves all pending connections, non-blocking.
+  - **Details**: Accepts connections, parses the request, and streams the response using `getSn_TX_FSR()` as the backpressure signal. Four sockets are shared, one of which is reserved for DHCP.
+
+- `uint32_t http_server_requests()`
+  - **Description**: Number of requests served since boot.
+  - **Details**: Reported by `/api/status` and the dashboard.
 
 
 ## Notes To Consider
